@@ -32,24 +32,39 @@ def _q(s: str) -> str:
     return shlex.quote(s)
 
 
+# A dedicated venv on the node holds snakemake; its bin goes on PATH so the
+# remote ``python -m snakemake`` resolves to it. Kept off the system python.
+VENV_DIR = "/opt/snakemake-spawn-venv"
+
+
 def build_install_preamble(
     snakemake_spec: str = DEFAULT_SNAKEMAKE_SPEC,
     storage_spec: str = DEFAULT_STORAGE_SPEC,
+    venv_dir: str = VENV_DIR,
 ) -> str:
-    """Idempotent pip-install of snakemake + the S3 storage plugin on the node.
+    """Idempotent install of snakemake + the S3 storage plugin into a venv on the
+    node, and put its bin on PATH.
 
-    Stock AL2023 has python3 + pip + the aws CLI but not snakemake. Guarded so a
-    prebuilt AMI that already has them is a near no-op (pip reports 'already
-    satisfied'). Uses ``pip install --user``-free system pip via ``python3 -m pip``.
+    Stock AL2023's *system* python is 3.9, but Snakemake 9 needs >=3.11 — so we
+    install ``python3.11`` from AL2023's repos and build a venv with it, rather
+    than using the system interpreter (the cause of the first e2e failure: pip
+    couldn't find a snakemake>=9 for py3.9). Guarded on the venv's snakemake so a
+    prebuilt AMI is a near no-op. The final ``export PATH`` makes the venv's
+    ``python``/``snakemake`` win for the remote command.
     """
     return (
-        "# snakemake-executor-plugin-spawn: ensure snakemake + S3 storage plugin.\n"
-        "if ! command -v snakemake >/dev/null 2>&1; then\n"
-        '  echo "snakemake-spawn: installing snakemake..." >&2\n'
-        "  sudo dnf install -y python3-pip >/dev/null 2>&1 || true\n"
-        f"  sudo python3 -m pip install --quiet {_q(snakemake_spec)} {_q(storage_spec)} "
+        "# snakemake-executor-plugin-spawn: ensure snakemake (py3.11 venv) + S3 storage.\n"
+        f"if [ ! -x {_q(venv_dir)}/bin/snakemake ]; then\n"
+        '  echo "snakemake-spawn: installing python3.11 + snakemake..." >&2\n'
+        "  sudo dnf install -y python3.11 python3.11-pip >/dev/null 2>&1 "
+        '|| { echo "snakemake-spawn: python3.11 install failed" >&2; exit 1; }\n'
+        f"  sudo python3.11 -m venv {_q(venv_dir)} "
+        '|| { echo "snakemake-spawn: venv create failed" >&2; exit 1; }\n'
+        f"  sudo {_q(venv_dir)}/bin/pip install --quiet --upgrade pip >/dev/null 2>&1 || true\n"
+        f"  sudo {_q(venv_dir)}/bin/pip install --quiet {_q(snakemake_spec)} {_q(storage_spec)} "
         '|| { echo "snakemake-spawn: snakemake install failed" >&2; exit 1; }\n'
         "fi\n"
+        f'export PATH={_q(venv_dir)}/bin:"$PATH"\n'
     )
 
 

@@ -5,11 +5,17 @@ from snakemake_executor_plugin_spawn.bootstrap import (
 )
 
 
-def test_install_preamble_is_idempotent_guarded():
+def test_install_preamble_uses_py311_venv_and_guards():
     p = build_install_preamble()
-    assert "command -v snakemake" in p
+    # Snakemake 9 needs py>=3.11; AL2023 system python is 3.9, so install 3.11.
+    assert "python3.11" in p
+    assert "venv" in p
     assert "pip install" in p
     assert "snakemake-storage-plugin-s3" in p
+    # idempotent: skips if the venv's snakemake already exists
+    assert "/bin/snakemake ]" in p
+    # puts the venv on PATH so the remote `python -m snakemake` resolves to it
+    assert "export PATH=" in p
 
 
 def test_user_data_runs_command_then_exitcode_last():
@@ -21,7 +27,7 @@ def test_user_data_runs_command_then_exitcode_last():
     assert ud.startswith("#!/bin/bash\n")
     assert JOB_DIR in ud
     # install preamble present by default
-    assert "command -v snakemake" in ud
+    assert "python3.11" in ud
     # the remote command runs, then TASK_RC captured, then .exitcode uploaded last
     i_cmd = ud.index("python -m snakemake --mode remote")
     i_rc = ud.index("TASK_RC=$?")
@@ -39,4 +45,4 @@ def test_user_data_custom_preamble_passthrough():
     )
     assert "# custom" in ud
     # default preamble suppressed when a custom one is given
-    assert "command -v snakemake" not in ud
+    assert "python3.11" not in ud

@@ -30,7 +30,7 @@ def test_launch_argv_spot_and_omits_unset():
         assert absent not in argv
 
 
-def test_cancel_uses_terminate():
-    assert build_cancel_argv("smk-x", "eu-west-1") == [
-        "spawn", "terminate", "smk-x", "--region", "eu-west-1", "--yes"
-    ]
+def test_cancel_uses_terminate_no_region_flag():
+    # `spawn terminate` resolves by name/id and takes NO --region flag.
+    assert build_cancel_argv("smk-x", "eu-west-1") == ["spawn", "terminate", "smk-x", "--yes"]
+    assert build_cancel_argv("smk-x") == ["spawn", "terminate", "smk-x", "--yes"]

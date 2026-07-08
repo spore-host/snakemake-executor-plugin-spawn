@@ -75,15 +75,14 @@ def build_launch_argv(spec: LaunchSpec) -> list[str]:
     return argv
 
 
-def build_cancel_argv(name: str, region: Optional[str]) -> list[str]:
-    """Build ``spawn terminate <name> --region <region> --yes``.
+def build_cancel_argv(name: str, region: Optional[str] = None) -> list[str]:
+    """Build ``spawn terminate <name> --yes``.
 
     ``spawn terminate`` is the single-instance teardown (by name or id); ``spawn
-    cancel`` is for parameter *sweeps*, not one instance. Always include --region
-    (a region-less teardown can silently leak a billable instance) and --yes.
+    cancel`` is for parameter *sweeps*, not one instance. It resolves the instance
+    by name/id across the account and takes NO ``--region`` flag (verified against
+    the spawn CLI), so ``region`` is accepted for signature-compatibility but
+    ignored.
     """
-    argv = ["spawn", "terminate", name]
-    if region:
-        argv += ["--region", region]
-    argv += ["--yes"]
-    return argv
+    _ = region  # spawn terminate has no --region flag; resolves by name/id.
+    return ["spawn", "terminate", name, "--yes"]

@@ -102,5 +102,4 @@ def test_cancel_jobs_terminates():
     ex.cancel_jobs([
         SubmittedJobInfo(job, external_jobid="smk-x", aux={"s3_prefix": "s3://b/x", "region": "eu-west-1"})
     ])
-    assert calls and calls[0][:3] == ["spawn", "terminate", "smk-x"]
-    assert "--region" in calls[0] and calls[0][calls[0].index("--region") + 1] == "eu-west-1"
+    assert calls and calls[0] == ["spawn", "terminate", "smk-x", "--yes"]

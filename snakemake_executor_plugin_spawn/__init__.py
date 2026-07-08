@@ -4,9 +4,12 @@ miniwdl-spawn (WDL), and cwl-spawn (CWL).
 
 Snakemake discovers this by module-name prefix and validates three module-level
 names — ``Executor``, ``common_settings``, ``ExecutorSettings``.
-"""
 
-from __future__ import annotations
+NOTE: do NOT add ``from __future__ import annotations`` here. Snakemake's plugin
+interface reads each ExecutorSettings field's real type object (``Optional[str]``,
+``bool``) to build argparse; stringized annotations break it with
+``'Optional[str]' is not callable``.
+"""
 
 from dataclasses import dataclass, field
 from typing import Optional
