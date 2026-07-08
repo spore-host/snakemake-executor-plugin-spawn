@@ -1,0 +1,21 @@
+# Minimal one-rule workflow for smoke-testing snakemake-executor-plugin-spawn.
+#
+#   snakemake --executor spawn \
+#     --default-storage-provider s3 \
+#     --default-storage-prefix s3://YOUR-BUCKET/snakemake-runs \
+#     --spawn-region us-east-1 --spawn-ttl 1h \
+#     --jobs 1 hello
+#
+# The `hello` rule runs `echo` on a spawned EC2 instance; its output is written
+# back to S3 via Snakemake's native storage provider, and the instance
+# self-terminates on completion.
+
+
+rule hello:
+    output:
+        "greeting.txt",
+    resources:
+        mem_mb=1024,
+    threads: 1
+    shell:
+        "echo 'hello, spore' > {output}"

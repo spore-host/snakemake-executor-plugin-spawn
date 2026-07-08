@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snakemake-executor-plugin-spawn"
+version = "0.1.0"
+description = "Snakemake executor plugin that runs each job on an ephemeral EC2 instance via spore-host/spawn"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "scttfrdmn" }]
+keywords = ["snakemake", "workflow", "bioinformatics", "aws", "ec2", "spawn", "executor-plugin"]
+dependencies = [
+    # The executor-plugin interface is the stable public contract; the base
+    # RemoteExecutor + CommonSettings/SubmittedJobInfo live here. 9.x is current.
+    "snakemake-interface-executor-plugins>=9.4.0,<10",
+    # snakemake provides the `python -m snakemake --mode remote` the node runs and
+    # the CLI the user drives with `--executor spawn`.
+    "snakemake>=9,<10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5", "mypy>=1.8"]
+
+[project.urls]
+Homepage = "https://github.com/spore-host/snakemake-executor-plugin-spawn"
+Issues = "https://github.com/spore-host/spore-host/issues/405"
+
+# NOTE: Snakemake discovers executor plugins by INSTALLED MODULE-NAME PREFIX
+# (`snakemake_executor_plugin_*`), NOT via entry points — so there is no
+# [project.entry-points] block and no console script. `snakemake --executor spawn`
+# imports this package by name.
+
+[tool.setuptools.packages.find]
+include = ["snakemake_executor_plugin_spawn*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
