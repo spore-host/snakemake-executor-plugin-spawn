@@ -17,7 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a **scoped least-privilege IAM profile** (was `--iam-policy s3:FullAccess`).
   Snakemake's own S3 storage plugin still does all file I/O — the node's
   `python -m snakemake … --mode remote` invocation (plus the py3.11 venv install
-  preamble) is carried in the TaskSpec command.
+  preamble) is carried in the TaskSpec command. The storage bucket(s) from the
+  remote command's `--default-storage-prefix` are declared in the TaskSpec's
+  `resources.s3_read_write` so spawn's scoped instance profile grants the
+  `ListBucket` + object access the storage plugin needs (requires spawn ≥ 0.84.0).
 - **The `instance_type` setting now steers the instance _family_** (e.g.
   `c7i.4xlarge` → the `c7i` family) rather than pinning the exact type; spawn's
   sizer picks the cheapest fit within it. (Exact-pin support is tracked as a spawn

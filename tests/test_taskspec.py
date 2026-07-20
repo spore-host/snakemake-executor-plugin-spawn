@@ -39,6 +39,23 @@ def test_no_manifests():
     assert "outputs" not in spec
 
 
+def test_s3_read_write_extracted_from_remote_command():
+    cmd = (
+        "python -m snakemake --mode remote "
+        "--default-storage-provider s3 "
+        "--default-storage-prefix s3://my-bucket/snakemake-runs --target-jobs x"
+    )
+    spec = _spec(remote_command=cmd)
+    # bucket-root URI so spawn scopes the grant to the whole bucket
+    assert spec["resources"]["s3_read_write"] == ["s3://my-bucket"]
+
+
+def test_s3_read_write_dedups_and_omitted_when_none():
+    assert "s3_read_write" not in _spec(remote_command="echo hi")["resources"]
+    cmd = "x s3://b/one s3://b/two s3://c/three"
+    assert taskspec.s3_read_write_buckets(cmd) == ["s3://b", "s3://c"]
+
+
 def test_resources_from_cores_and_mem_mb():
     spec = _spec(cores=8, mem_mb=16384)
     assert spec["resources"]["cpu"] == 8

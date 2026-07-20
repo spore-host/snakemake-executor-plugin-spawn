@@ -25,6 +25,30 @@ from typing import Optional
 # Family prefix of an instance type, e.g. "c7i" from "c7i.4xlarge".
 _FAMILY_RE = re.compile(r"^([a-z][a-z0-9]*?[0-9]+[a-z]*)\.")
 
+# An s3:// URI token, e.g. in the remote command's --default-storage-prefix.
+_S3_URI_RE = re.compile(r"s3://[A-Za-z0-9][A-Za-z0-9.\-_/]*")
+
+
+def s3_read_write_buckets(remote_command: str) -> list:
+    """Extract the distinct ``s3://bucket`` URIs the node's snakemake invocation
+    will read/write via its S3 storage plugin (the ``--default-storage-prefix``).
+    These need FULL scoped access on the instance (ListBucket + Get/Put/Delete),
+    which spawn's manifest-derived policy can't grant because snakemake uses no
+    TaskSpec manifests — its storage plugin does the I/O itself. Pure.
+
+    Returns bucket-root URIs (``s3://bucket``) so spawn scopes the grant to the
+    whole bucket (the plugin does bucket-level ListBucket)."""
+    seen = set()
+    out = []
+    for m in _S3_URI_RE.findall(remote_command or ""):
+        rest = m[len("s3://"):]
+        bucket = rest.split("/", 1)[0]
+        uri = f"s3://{bucket}"
+        if bucket and uri not in seen:
+            seen.add(uri)
+            out.append(uri)
+    return out
+
 
 def build_command_string(remote_command: str, job_dir: str, install_preamble: str) -> str:
     """Assemble the node program as a single shell string. Pure.
@@ -89,8 +113,11 @@ def build_task_spec(
     """Build the TaskSpec dict for one Snakemake job. Pure.
 
     No inputs/outputs manifests — Snakemake's S3 storage plugin (invoked by the
-    remote command) does all file I/O. The command bundles the install preamble
-    and the remote snakemake invocation.
+    remote command) does all file I/O. Instead, the storage bucket(s) named in the
+    remote command's ``--default-storage-prefix`` are declared in
+    ``resources.s3_read_write`` so spawn's scoped instance profile grants the
+    ListBucket + object access the plugin needs. The command bundles the install
+    preamble and the remote snakemake invocation.
     """
     jd = job_dir.rstrip("/")
     inner = build_command_string(remote_command, jd, install_preamble)
@@ -108,6 +135,9 @@ def build_task_spec(
     if spot:
         resources["purchase"] = "spot"
         resources["fallback"] = "on_demand"
+    rw = s3_read_write_buckets(remote_command)
+    if rw:
+        resources["s3_read_write"] = rw
 
     return {
         "task_id": task_id,
