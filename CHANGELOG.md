@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **snakemake-executor-plugin-spawn now dispatches each job through `spawn task
+  run`** instead of orchestrating the launch itself (spawn#386 adapter migration).
+  `run_job` builds a spawn **TaskSpec** and runs `spawn task run` (detached);
+  `check_active_jobs` polls `spawn task status --check-complete` and reads the exit
+  code from the **CompletionRecord**; `cancel_jobs` terminates by task id. spawn now
+  owns instance sizing (truffle), the durable completion record, self-termination,
+  and a **scoped least-privilege IAM profile** (was `--iam-policy s3:FullAccess`).
+  Snakemake's own S3 storage plugin still does all file I/O — the node's
+  `python -m snakemake … --mode remote` invocation (plus the py3.11 venv install
+  preamble) is carried in the TaskSpec command.
+- **The `instance_type` setting now steers the instance _family_** (e.g.
+  `c7i.4xlarge` → the `c7i` family) rather than pinning the exact type; spawn's
+  sizer picks the cheapest fit within it. (Exact-pin support is tracked as a spawn
+  TaskSpec follow-up.)
+- **The on-instance job dir moved to `/var/tmp/snakemake_spawn_job`** (was
+  `/mnt/snakemake_spawn_job`): spawn runs the command as the instance's unprivileged
+  login user, which can't create dirs under the root-owned `/mnt`.
+- `truffle` is no longer required on `PATH` (spawn sizes the instance itself);
+  `spawn` and AWS credentials are still required.
+
+### Removed
+- Bundled launch/completion/sizing machinery (`launch.py`, `completion.py`,
+  `sizing.py`) and `bootstrap.build_user_data` — spawn owns launch/completion now;
+  `bootstrap` keeps only the snakemake install preamble.
+
 ## [0.1.0] - 2026-07-07
 
 ### Added

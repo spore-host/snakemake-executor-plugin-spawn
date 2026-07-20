@@ -42,19 +42,21 @@ standing infrastructure.
 
 ### Sizing
 
-A job's EC2 instance type is chosen by, in order:
-1. an explicit instance-type override (`--spawn-instance-type`),
-2. the cheapest instance that fits the job's `threads` + `resources.mem_mb` via
-   `truffle search --pick-first`,
-3. a default (`t3.medium`).
+A job's EC2 instance is sized by spawn (via truffle), from, in order:
+1. an explicit instance-type override (`--spawn-instance-type`), which steers the
+   instance _family_ (e.g. `c7i.4xlarge` → the `c7i` family),
+2. the cheapest instance that fits the job's `threads` + `resources.mem_mb`,
+3. a default.
 
 ## How it works
 
-Each job runs a fresh `python -m snakemake … --mode remote` invocation on its
-instance; the node auto-installs snakemake + the S3 storage plugin at boot (no
-prebuilt AMI needed), runs the one rule, and writes a final `.exitcode` object to
-S3 — the durable completion signal the plugin polls (the instance self-terminates,
-so it can't be probed directly).
+The plugin builds a spawn **TaskSpec** and dispatches `spawn task run` (detached)
+per job (spawn#386); spawn sizes and launches the instance, writes a durable
+completion record, and self-terminates. `check_active_jobs` polls
+`spawn task status` for completion. On the instance, a fresh
+`python -m snakemake … --mode remote` invocation runs the one rule — the node
+auto-installs snakemake + the S3 storage plugin at boot (no prebuilt AMI needed),
+and Snakemake's S3 storage plugin does all file I/O (spawn stages nothing here).
 
 ## License
 
