@@ -1,0 +1,20 @@
+# Snakefile for the engine-composition test (Substrate, no real AWS).
+#
+# A single rule with NEITHER input NOR output files. Snakemake documents such a
+# rule as "always executed" and — crucially — has no declared `output:` to gate
+# on, so `snakemake/io/wait_for_files` is never invoked. That matters because the
+# Substrate emulator does NOT execute the workload, so a declared output file
+# would never appear in storage and the run would fail at output-collection even
+# though dispatch + completion + exit-code all worked (see #3). A no-output rule
+# is Snakemake's exact analog of miniwdl's no-`File`-output task: it lets a REAL
+# `snakemake --executor spawn` run compose end-to-end with spawn against Substrate.
+#
+# The single job's spawn task id is deterministic: smk-<rulename>-<attempt> =
+# `smk-noout-1` (see `_task_id` in executor.py), so the failure test can seed the
+# completion record before running — no log scraping, no race.
+rule noout:
+    resources:
+        mem_mb=1024,
+    threads: 1
+    shell:
+        "echo 'hello spore — composition test, no output'"

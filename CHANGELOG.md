@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Engine-composition CI test** (`tests/composition/`, `.github/workflows/composition-test.yml`):
+  a REAL `snakemake --executor spawn` run driven end-to-end against the
+  [Substrate](https://github.com/scttfrdmn/substrate) AWS emulator — no real AWS,
+  no cost. Asserts the plugin still composes with current Snakemake + spawn:
+  dispatch (`spawn task run`) → completion record → exit code → job
+  success/failure, for both the happy path (unseeded ⇒ exit 0) and the failure
+  path (a seeded nonzero completion, substrate#360, ⇒ Snakemake reports "exited
+  with code 7"). Uses a **no-output rule** — Snakemake gates a run on its declared
+  `output:` existing in storage (`wait_for_files`), which needs real execution the
+  emulator deliberately doesn't do; a rule with no output has no such gate. This
+  is a full-engine run (not a seam-level fallback), matching the miniwdl/airflow
+  adapters' bar. Part of spore-host#397; closes #3.
+
 ## [0.2.0] - 2026-07-19
 
 ### Changed
@@ -52,5 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instance (auto-installed Python 3.11 + snakemake + the S3 storage plugin at
   boot), wrote its output to S3, and self-terminated (leak-checked clean).
 
-[Unreleased]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/releases/tag/v0.1.0
