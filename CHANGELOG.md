@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is a full-engine run (not a seam-level fallback), matching the miniwdl/airflow
   adapters' bar. Part of spore-host#397; closes #3.
 
+### Fixed
+- Pin `ruff<0.16` in the `dev` extra so CI lint is reproducible. ruff 0.16
+  enabled new rules (UP045/UP037/BLE001/TRY004/…) that turned the previously
+  green `Test` job red on unrelated, already-committed code; the repo already
+  favors pinned tooling (Actions are SHA-pinned).
+
 ## [0.2.0] - 2026-07-19
 
 ### Changed
