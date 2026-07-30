@@ -1,0 +1,71 @@
+name: Engine composition test
+
+# Proves REAL `snakemake --executor spawn` drives a job end-to-end against the
+# Substrate AWS emulator — no real AWS, no cost, no workload execution. Real
+# `snakemake` run → SpawnExecutor.run_job → real `spawn task run` + real `aws s3`
+# staging vs. Substrate → completion record → exit code → job success/failure.
+# Substrate serves the completion as a seedable, clock-aware outcome
+# (scttfrdmn/substrate#360); unseeded ⇒ exit 0, a seeded nonzero drives failure.
+#
+# Uses a NO-OUTPUT rule: Snakemake gates a run on its declared `output:` existing
+# in storage (wait_for_files), which needs real execution the emulator can't do;
+# a rule with no output has no such gate (see #3).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  SUBSTRATE_VERSION: v0.75.0   # first release with seedable task-completion (#360)
+  SPAWN_VERSION: 0.95.0        # spawn release providing `spawn task run`
+
+jobs:
+  composition:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup Go (for the Substrate emulator)
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26'
+
+      - name: Install + start Substrate
+        run: |
+          go install github.com/scttfrdmn/substrate/cmd/substrate@${SUBSTRATE_VERSION}
+          "$(go env GOPATH)/bin/substrate" server > /tmp/substrate.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:4566/health >/dev/null 2>&1 && { echo "substrate up"; break; }
+            sleep 1
+          done
+          curl -fsS http://localhost:4566/health
+
+      - name: Install the spawn CLI (release binary)
+        run: |
+          curl -fsSL -o /tmp/spawn.tgz \
+            "https://github.com/spore-host/spawn/releases/download/v${SPAWN_VERSION}/spawn_${SPAWN_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/spawn.tgz -C /tmp
+          sudo install /tmp/spawn /usr/local/bin/spawn
+          spawn version | head -1 || true
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install snakemake + storage plugin + the spawn executor (built wheel)
+        run: |
+          # Snakemake discovers executor plugins by installed DISTRIBUTION; an
+          # editable install is NOT found (`--executor spawn` → "invalid choice").
+          # Build + install the wheel so `snakemake --executor spawn` resolves.
+          pip install --quiet build
+          python -m build --wheel
+          pip install --quiet snakemake snakemake-storage-plugin-s3 dist/*.whl
+          snakemake --version
+
+      - name: Run engine composition test (Substrate, no AWS)
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4566
+        run: bash tests/composition/composition-test.sh
