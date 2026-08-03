@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Added Dependabot, so the SHA-pinned actions actually get bumped**
+  ([#7](https://github.com/spore-host/snakemake-executor-plugin-spawn/issues/7)). All 8 `uses:` refs were already pinned to commit SHAs — which
+  is exactly the situation that needs this: a SHA never moves, including past a
+  security fix, and unlike `@v5` nothing updates it. Pinning and Dependabot are one
+  control, not two; shipping only the pin trades a mutable-tag hole for a slow one.
+  - The new `.github/dependabot.yml` covers `github-actions` and `pip`, weekly with
+    a 7-day cooldown — a freshly published tag is exactly when a compromised or
+    broken one is still unnoticed. Group pattern is `*`, not `actions/*`, because
+    `softprops/action-gh-release` (which creates the GitHub Release under
+    `contents: write`) would otherwise fall outside the group and stop being
+    bumped. `ruff >=0.16` is ignored so a bump can't undo the deliberate cap.
+  - `tests/test_ci_hygiene.py` makes both halves regressions rather than
+    conventions: reverting a pin or dropping the Dependabot entry now fails
+    `pytest`, which CI already runs. `pyyaml` joins the `[dev]` extra for it and is
+    imported unguarded — a `try`/`except` import degrades to a skip, and a skipped
+    wiring test reports green while asserting nothing.
+  No behaviour change — CI wiring and tests only.
+
 ### Added
 - **Engine-composition CI test** (`tests/composition/`, `.github/workflows/composition-test.yml`):
   a REAL `snakemake --executor spawn` run driven end-to-end against the
