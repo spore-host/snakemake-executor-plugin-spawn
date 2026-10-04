@@ -15,11 +15,50 @@ All functions are pure string builders (no I/O), unit-tested without AWS.
 from __future__ import annotations
 
 import shlex
+from importlib import metadata
 
-# Pinned so a node's snakemake matches the submitting host's remote protocol. Kept
-# in sync with pyproject's snakemake dependency.
-DEFAULT_SNAKEMAKE_SPEC = "snakemake>=9,<10"
-DEFAULT_STORAGE_SPEC = "snakemake-storage-plugin-s3"
+# Fallbacks, used only when the submitting environment's own versions cannot be
+# read. Kept in sync with pyproject's snakemake dependency.
+FALLBACK_SNAKEMAKE_SPEC = "snakemake>=9,<10"
+FALLBACK_STORAGE_SPEC = "snakemake-storage-plugin-s3"
+
+
+def _pinned_spec(dist: str, fallback: str) -> str:
+    """``<dist>==<version installed here>``, or ``fallback`` if unreadable.
+
+    Resolving an unpinned RANGE on each node meant the version of Snakemake that
+    executed a job was whatever PyPI served that instance at that moment
+    (snakemake#13). Two jobs in one workflow could therefore run different
+    Snakemake versions — the fan-out launches instances minutes apart, and a
+    release landing mid-workflow is enough — and nothing recorded what either
+    resolved. The storage plugin was wholly unpinned, making it the likelier of
+    the two to move.
+
+    Pinning to the SUBMITTER's versions makes the nodes agree with the host that
+    submitted the workflow by construction, which is the property the spore.host
+    model depends on: a run is reproducible because the thing that ran is
+    identified. A caller who wants something else sets --spawn-snakemake-spec /
+    --spawn-storage-spec explicitly.
+    """
+    try:
+        return f"{dist}=={metadata.version(dist)}"
+    except metadata.PackageNotFoundError:
+        return fallback
+
+
+def default_snakemake_spec() -> str:
+    """Pin to this environment's snakemake. Called at submit time, not import."""
+    return _pinned_spec("snakemake", FALLBACK_SNAKEMAKE_SPEC)
+
+
+def default_storage_spec() -> str:
+    """Pin to this environment's S3 storage plugin.
+
+    Unlike snakemake, this is NOT a hard dependency of this package, so the
+    fallback is reachable in normal use. A working setup has it (the submitter
+    needs it for --default-storage-provider s3), but we cannot assume it.
+    """
+    return _pinned_spec("snakemake-storage-plugin-s3", FALLBACK_STORAGE_SPEC)
 
 
 def _q(s: str) -> str:
@@ -32,8 +71,8 @@ VENV_DIR = "/opt/snakemake-spawn-venv"
 
 
 def build_install_preamble(
-    snakemake_spec: str = DEFAULT_SNAKEMAKE_SPEC,
-    storage_spec: str = DEFAULT_STORAGE_SPEC,
+    snakemake_spec: str | None = None,
+    storage_spec: str | None = None,
     venv_dir: str = VENV_DIR,
 ) -> str:
     """Idempotent install of snakemake + the S3 storage plugin into a venv on the
@@ -46,8 +85,18 @@ def build_install_preamble(
     prebuilt AMI is a near no-op. The final ``export PATH`` makes the venv's
     ``python``/``snakemake`` win for the remote command.
     """
+    # Resolved here rather than as parameter defaults, which bind at import time —
+    # metadata lookups belong at submit time (snakemake#13).
+    if snakemake_spec is None:
+        snakemake_spec = default_snakemake_spec()
+    if storage_spec is None:
+        storage_spec = default_storage_spec()
+
     return (
         "# snakemake-executor-plugin-spawn: ensure snakemake (py3.11 venv) + S3 storage.\n"
+        # Echo the specs into the job's log so the software that ran is recoverable
+        # from the record even when a caller has loosened the pin (snakemake#13).
+        f'echo "snakemake-spawn: installing {snakemake_spec} {storage_spec}" >&2\n'
         f"if [ ! -x {_q(venv_dir)}/bin/snakemake ]; then\n"
         '  echo "snakemake-spawn: installing python3.11 + snakemake..." >&2\n'
         "  sudo dnf install -y python3.11 python3.11-pip >/dev/null 2>&1 "

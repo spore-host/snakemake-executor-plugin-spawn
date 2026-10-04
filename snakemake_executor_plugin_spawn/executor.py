@@ -26,7 +26,7 @@ import os
 import re
 import subprocess
 import tempfile
-from typing import TYPE_CHECKING, AsyncGenerator, List
+from typing import TYPE_CHECKING, AsyncGenerator, List, Optional
 
 from snakemake_interface_executor_plugins.executors.base import SubmittedJobInfo
 from snakemake_interface_executor_plugins.executors.remote import RemoteExecutor
@@ -62,6 +62,44 @@ class SpawnExecutor(RemoteExecutor):
     def _ttl(self) -> str:
         return getattr(self.settings, "ttl", None) or os.environ.get("SPAWN_TTL", "4h")
 
+    def _cost_limit(self) -> Optional[float]:
+        """Per-job spend cap in USD, or None to let spawn's own default apply.
+
+        TTL alone bounds a job in TIME, not money (snakemake#12). spored enforces
+        the two independently and the first to fire wins, so this is a genuine
+        second belt — and the failure mode it catches is a job that HANGS rather
+        than fails, which produces no error for Snakemake to retry or abort on and
+        bills until the TTL expires.
+        """
+        raw = getattr(self.settings, "cost_limit", None)
+        if raw is None:
+            raw = os.environ.get("SPAWN_COST_LIMIT")
+        if raw in (None, ""):
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            self.logger.warning(
+                "ignoring non-numeric cost limit %r; the job will be bounded by TTL only", raw
+            )
+            return None
+
+    def _container(self, job: "JobExecutorInterface") -> Optional[str]:
+        """The image this job should run in, or None to run on the host.
+
+        A rule's own ``container:`` directive wins over the executor-wide
+        ``--spawn-container`` default, so a workflow that already names images
+        per rule needs no new configuration at all. Snakemake exposes it as
+        ``container_img_url``; read defensively, since it is absent on jobs
+        (and Snakemake versions) that have no container notion.
+        """
+        per_rule = getattr(job, "container_img_url", None)
+        if per_rule:
+            return str(per_rule)
+        return getattr(self.settings, "container", None) or os.environ.get(
+            "SPAWN_CONTAINER"
+        ) or None
+
     def _task_id(self, job: "JobExecutorInterface") -> str:
         # Fold the attempt into the id: it names the instance AND keys the
         # completion record (tasks/<id>/completion.json), so a retry must not read
@@ -92,13 +130,18 @@ class SpawnExecutor(RemoteExecutor):
             task_id=task_id,
             remote_command=remote_command,
             job_dir=JOB_DIR,
-            install_preamble=bootstrap.build_install_preamble(),
+            install_preamble=bootstrap.build_install_preamble(
+                snakemake_spec=getattr(self.settings, "snakemake_spec", None),
+                storage_spec=getattr(self.settings, "storage_spec", None),
+            ),
             cores=getattr(job, "threads", None) or res.get("_cores"),
             mem_mb=res.get("mem_mb"),
             instance_hint=self._instance_hint(job),
             spot=bool(getattr(self.settings, "spot", False)),
             ttl=self._ttl(),
             on_complete="terminate",
+            container=self._container(job),
+            cost_limit=self._cost_limit(),
         )
         with tempfile.NamedTemporaryFile(
             "w", suffix=".json", prefix=f"snakemake-spawn-{task_id}-", delete=False
