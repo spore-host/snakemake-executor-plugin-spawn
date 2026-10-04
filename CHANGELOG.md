@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
 ### Added
 - **`--spawn-cost-limit`: a hard spend cap per job instance** (#12). Previously TTL
   was the *only* ceiling on a job, and the default is 4h — so a fan-out of N jobs had
