@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`--spawn-cost-limit`: a spend ceiling per job, beside the TTL.** A job's only
+  bound was `--spawn-ttl`, defaulting to **4h**, so a fan-out of N jobs had a worst
+  case of N x 4h x the instance rate with no second belt — and a workflow that hangs
+  rather than fails burns all of it. `spawn` has supported `lifecycle.cost_limit`
+  since 0.103.0 and this adapter never emitted it; now it does, with the same
+  precedence `spawn_instance_type` already has: a per-rule
+  `resources: spawn_cost_limit=0.50` overrides the workflow-wide flag, because a
+  single cap has to be sized for the most expensive rule and so leaves every cheaper
+  rule effectively uncapped. Unset is unchanged — the field is **omitted** rather
+  than defaulted, since spawn reads an absent `cost_limit` as "no ceiling" and
+  inventing a number would impose a guardrail the caller never asked for. A value
+  that is set is passed through verbatim rather than validated here: dropping a
+  nonsensical one would leave the job silently *uncapped*, which is the failure the
+  field exists to prevent, so spawn rejects it loudly at launch instead.
+  (spore-host/snakemake-executor-plugin-spawn#12)
 - CI workflow to publish `snakemake-executor-plugin-spawn` to PyPI on a
   `python-vX.Y.Z` tag, via PyPI Trusted Publishing (OIDC, no stored API token)
   in a dedicated `pypi` GitHub environment — the same mechanism `python-sdk`

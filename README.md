@@ -31,6 +31,7 @@ snakemake \
   --default-storage-prefix s3://my-bucket/snakemake-runs \
   --spawn-region us-east-1 \
   --spawn-ttl 4h \
+  --spawn-cost-limit 0.50 \
   --jobs 8 \
   <target>
 ```

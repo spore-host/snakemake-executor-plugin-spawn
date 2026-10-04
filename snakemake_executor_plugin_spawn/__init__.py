@@ -42,6 +42,18 @@ class ExecutorSettings(ExecutorSettingsBase):
         default=None,
         metadata={"help": "TTL backstop per job instance (e.g. 4h). Default 4h.", "env_var": True},
     )
+    cost_limit: Optional[float] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Spend ceiling in USD per job instance, enforced by spawn "
+                "(lifecycle.cost_limit). A second belt beside the TTL: TTL bounds "
+                "how long a job may run, this bounds what it may cost. Per-rule "
+                "override: resources: spawn_cost_limit=0.50."
+            ),
+            "env_var": True,
+        },
+    )
     instance_type: Optional[str] = field(
         default=None,
         metadata={"help": "Override the auto-sized EC2 instance type for every job."},

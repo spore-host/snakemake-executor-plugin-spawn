@@ -79,6 +79,29 @@ def test_lifecycle_defaults_terminate():
     assert _spec(ttl="2h")["lifecycle"] == {"ttl": "2h", "on_complete": "terminate"}
 
 
+def test_cost_limit_omitted_when_unset():
+    # The default spec must be byte-identical to before cost_limit existed: spawn
+    # reads an absent lifecycle.cost_limit as "no ceiling", and inventing a number
+    # would impose a guardrail the caller never asked for.
+    assert "cost_limit" not in _spec()["lifecycle"]
+
+
+def test_cost_limit_emitted_when_set():
+    assert _spec(ttl="2h", cost_limit=0.5)["lifecycle"] == {
+        "ttl": "2h",
+        "on_complete": "terminate",
+        "cost_limit": 0.5,
+    }
+
+
+@pytest.mark.parametrize("bad", [0, -1.0])
+def test_cost_limit_passed_through_verbatim(bad):
+    # Not validated here on purpose. Dropping a nonsensical value would leave the
+    # job silently UNCAPPED, which is the failure this field exists to prevent;
+    # spawn validates it and fails the launch loudly instead.
+    assert _spec(cost_limit=bad)["lifecycle"]["cost_limit"] == bad
+
+
 def test_empty_preamble_still_runs_remote():
     inner = _spec(install_preamble="")["command"][2]
     assert REMOTE in inner

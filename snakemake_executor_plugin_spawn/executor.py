@@ -62,6 +62,23 @@ class SpawnExecutor(RemoteExecutor):
     def _ttl(self) -> str:
         return getattr(self.settings, "ttl", None) or os.environ.get("SPAWN_TTL", "4h")
 
+    def _cost_limit(self, job: "JobExecutorInterface") -> "float | None":
+        """USD ceiling for this job, or None for no ceiling.
+
+        Per-rule ``resources: spawn_cost_limit=`` wins over the workflow-wide
+        setting, mirroring how ``spawn_instance_type`` overrides ``--spawn-instance-type``:
+        a cap that has to be one number for every rule is a cap sized for the most
+        expensive rule, which is no cap at all for the rest.
+        """
+        raw = job.resources.get("spawn_cost_limit")
+        if raw is None:
+            raw = getattr(self.settings, "cost_limit", None)
+        if raw is None:
+            raw = os.environ.get("SPAWN_COST_LIMIT")
+        if raw is None or raw == "":
+            return None
+        return float(raw)
+
     def _task_id(self, job: "JobExecutorInterface") -> str:
         # Fold the attempt into the id: it names the instance AND keys the
         # completion record (tasks/<id>/completion.json), so a retry must not read
@@ -98,6 +115,7 @@ class SpawnExecutor(RemoteExecutor):
             instance_hint=self._instance_hint(job),
             spot=bool(getattr(self.settings, "spot", False)),
             ttl=self._ttl(),
+            cost_limit=self._cost_limit(job),
             on_complete="terminate",
         )
         with tempfile.NamedTemporaryFile(

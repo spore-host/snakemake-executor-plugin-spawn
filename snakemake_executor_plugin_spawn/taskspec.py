@@ -108,6 +108,7 @@ def build_task_spec(
     instance_hint: Optional[str] = None,
     spot: bool = False,
     ttl: str = "4h",
+    cost_limit: Optional[float] = None,
     on_complete: str = "terminate",
 ) -> dict:
     """Build the TaskSpec dict for one Snakemake job. Pure.
@@ -139,11 +140,20 @@ def build_task_spec(
     if rw:
         resources["s3_read_write"] = rw
 
+    lifecycle: dict = {"ttl": ttl, "on_complete": on_complete}
+    # Omitted rather than defaulted when unset: spawn treats an absent
+    # lifecycle.cost_limit as "no ceiling", and emitting a number we invented would
+    # be a guardrail the caller never asked for. Passed through verbatim otherwise —
+    # spawn validates the value, so a nonsensical one fails loudly at launch instead
+    # of being silently dropped here (which would leave the job uncapped).
+    if cost_limit is not None:
+        lifecycle["cost_limit"] = cost_limit
+
     return {
         "task_id": task_id,
         "command": command,
         "resources": resources,
-        "lifecycle": {"ttl": ttl, "on_complete": on_complete},
+        "lifecycle": lifecycle,
     }
 
 
