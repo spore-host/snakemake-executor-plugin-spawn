@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`--spawn-cost-limit`: a hard spend cap per job instance** (#12). Previously TTL
+  was the *only* ceiling on a job, and the default is 4h — so a fan-out of N jobs had
+  a worst case of N × 4h × the instance rate with no second belt. `spored` enforces TTL
+  and cost independently and the first to fire wins, so this is a genuine second limit.
+  It matters most for the failure that actually costs money: a job that **hangs** rather
+  than fails produces no error for Snakemake to retry or abort on, so it bills until the
+  TTL expires. Emitted as `lifecycle.cost_limit` only when set, so spawn's own default
+  still applies otherwise. (`--cost-limit` became a compute **+ storage** total in spawn
+  0.116.0, so a cap now bounds EBS too.)
+- **A rule's `container:` is passed through to the job's instance** (#12), with
+  `--spawn-container` as a workflow-wide default. The job then runs through spawn's
+  existing container path — Docker installed on demand, digest pull, private-ECR auth,
+  GPU flags — instead of on a bare AL2023 host where the tool had to already be present
+  or be installed by the rule. A per-rule `container:` wins over the flag, so a workflow
+  that already names images needs no new configuration. This is what made a run's
+  software identifiable, and what `nf-spawn` has had all along.
+- **`--spawn-snakemake-spec` / `--spawn-storage-spec`** to pin the node-side installs
+  exactly (#13).
+
+### Changed
+- **Job instances now install the *submitting* environment's Snakemake version** (#13).
+  The node-side specs were unpinned ranges (`snakemake>=9,<10`, and the storage plugin
+  with no bound at all), resolved from PyPI **per instance at run time** — so two jobs in
+  one workflow could run different Snakemake versions, since the fan-out launches
+  instances minutes apart and a release landing mid-workflow is enough. Nothing recorded
+  what either resolved. They now default to `==` the submitter's own versions, so the
+  nodes agree with the host that submitted the workflow by construction. The resolved
+  specs are echoed into each job's log, so the software that ran is recoverable even
+  when a caller deliberately loosens the pin. The storage plugin is not a hard dependency
+  of this package, so it degrades to the old range when the submitter lacks it.
+
+### Fixed
+- **The README's install command cannot work and now doesn't claim to** (#13). It said
+  `pip install snakemake-executor-plugin-spawn`; the package is not on PyPI, so that
+  fails with "No matching distribution found" — the first thing a new user runs, and the
+  first thing that failed (the same shape as nf-spawn#90). It now gives the
+  `git+https@<tag>` form, and documents that the plugin must land in the **same**
+  environment as Snakemake (discovery is by module-name prefix within Snakemake's own
+  interpreter) and that a venv is usually *required* rather than tidy, because Homebrew's
+  Python is PEP 668 externally-managed and refuses `pip install` outright. A test ties
+  the README's pin to `pyproject.toml`'s version so it cannot silently rot.
 - CI workflow to publish `snakemake-executor-plugin-spawn` to PyPI on a
   `python-vX.Y.Z` tag, via PyPI Trusted Publishing (OIDC, no stored API token)
   in a dedicated `pypi` GitHub environment — the same mechanism `python-sdk`

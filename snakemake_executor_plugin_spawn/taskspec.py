@@ -109,6 +109,8 @@ def build_task_spec(
     spot: bool = False,
     ttl: str = "4h",
     on_complete: str = "terminate",
+    container: Optional[str] = None,
+    cost_limit: Optional[float] = None,
 ) -> dict:
     """Build the TaskSpec dict for one Snakemake job. Pure.
 
@@ -139,12 +141,32 @@ def build_task_spec(
     if rw:
         resources["s3_read_write"] = rw
 
-    return {
+    # lifecycle.cost_limit is a SECOND, independent ceiling (snakemake#12). spored
+    # enforces TTL and cost separately and the first to fire wins, so without it the
+    # only bound on a job is the TTL — and a fan-out of N jobs has a worst case of
+    # N x TTL x the instance rate, which a workflow that HANGS rather than fails
+    # will burn in full. Omitted entirely when unset, so the spec stays minimal and
+    # spawn's own default applies.
+    lifecycle: dict = {"ttl": ttl, "on_complete": on_complete}
+    if cost_limit is not None and float(cost_limit) > 0:
+        lifecycle["cost_limit"] = float(cost_limit)
+
+    spec: dict = {
         "task_id": task_id,
         "command": command,
         "resources": resources,
-        "lifecycle": {"ttl": ttl, "on_complete": on_complete},
+        "lifecycle": lifecycle,
     }
+
+    # spec.container routes the job through spawn's existing container path —
+    # Docker install on demand, digest pull, private-ECR auth, GPU flags — rather
+    # than running on a bare AL2023 host where the tool has to already be present
+    # (snakemake#12). This is the field that makes a run's software identifiable,
+    # and it is what nf-spawn has had all along.
+    if container:
+        spec["container"] = container
+
+    return spec
 
 
 # ---- completion, from `spawn task status --check-complete` / -o json ----------

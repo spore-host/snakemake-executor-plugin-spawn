@@ -15,9 +15,25 @@ no forgotten instances.
 
 ## Install
 
+Not on PyPI yet, so install from a tagged commit:
+
 ```bash
-pip install snakemake-executor-plugin-spawn
+pip install "snakemake-executor-plugin-spawn @ git+https://github.com/spore-host/snakemake-executor-plugin-spawn@v0.2.0"
 ```
+
+Install it into the **same environment as Snakemake**, alongside the S3 storage
+plugin — Snakemake discovers executor plugins by module-name prefix within its own
+interpreter, so a plugin installed elsewhere is invisible to it:
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install snakemake snakemake-storage-plugin-s3 \
+  "snakemake-executor-plugin-spawn @ git+https://github.com/spore-host/snakemake-executor-plugin-spawn@v0.2.0"
+```
+
+A venv is usually required rather than merely tidy: Snakemake is commonly installed
+from Homebrew, whose Python is PEP 668 externally-managed, and `pip install` into it
+is refused outright.
 
 Requires the `spawn` and `truffle` CLIs on `PATH` and AWS credentials for real
 runs.
