@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **The `container:` passthrough and `--spawn-container`, both added in 0.3.0, are
+  removed — they could not work** (#16). Routing a rule's `container:` to
+  `spec.container` is architecturally wrong for this adapter: `spec.command` here is a
+  **Snakemake re-invocation** (`format_job_exec` → `python -m snakemake --mode remote
+  …`), not the rule's shell. So it ran Snakemake *inside* the science image — which for a
+  single-tool bioconda image means no Snakemake, no storage plugin, no `dnf`, no `sudo`
+  and no root. Observed on a real pinned arm64 image: `python3.11 install failed`, rc=1;
+  and before that, with Snakemake's conventional `docker://` scheme left on, `docker:
+  invalid reference format`, rc=125.
+  **This should not have shipped.** The reporter explicitly retracted the suggestion 42
+  minutes before it was implemented — *"Don't do that — it cannot work with this
+  adapter's architecture, and I'd rather say so before someone implements it"* — and
+  split the half that does work into its own PR. The issue comments were not read before
+  implementing.
+  Advertising a setting that cannot work is worse than not having it, so it is gone
+  rather than left with a caveat. A test now fails if either comes back as an
+  apparently-obvious one-field fix.
+  `--spawn-cost-limit` is unaffected: that half is correct and stays.
+  The shape that *can* work is tracked in #16 — Snakemake already forwards
+  `--software-deployment-method` to the node and intends to own containerisation itself;
+  what the node lacks is a runtime (apptainer ships `el9` aarch64 RPMs that install on
+  AL2023 and are pinnable).
+
 ## [0.3.0] - 2026-10-04
 
 ### Added

@@ -84,22 +84,6 @@ class SpawnExecutor(RemoteExecutor):
             )
             return None
 
-    def _container(self, job: "JobExecutorInterface") -> Optional[str]:
-        """The image this job should run in, or None to run on the host.
-
-        A rule's own ``container:`` directive wins over the executor-wide
-        ``--spawn-container`` default, so a workflow that already names images
-        per rule needs no new configuration at all. Snakemake exposes it as
-        ``container_img_url``; read defensively, since it is absent on jobs
-        (and Snakemake versions) that have no container notion.
-        """
-        per_rule = getattr(job, "container_img_url", None)
-        if per_rule:
-            return str(per_rule)
-        return getattr(self.settings, "container", None) or os.environ.get(
-            "SPAWN_CONTAINER"
-        ) or None
-
     def _task_id(self, job: "JobExecutorInterface") -> str:
         # Fold the attempt into the id: it names the instance AND keys the
         # completion record (tasks/<id>/completion.json), so a retry must not read
@@ -140,7 +124,6 @@ class SpawnExecutor(RemoteExecutor):
             spot=bool(getattr(self.settings, "spot", False)),
             ttl=self._ttl(),
             on_complete="terminate",
-            container=self._container(job),
             cost_limit=self._cost_limit(),
         )
         with tempfile.NamedTemporaryFile(

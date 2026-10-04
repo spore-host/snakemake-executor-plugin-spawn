@@ -1,4 +1,11 @@
-"""Tests for snakemake#12 (container + cost_limit) and #13 (pinned specs)."""
+"""Tests for snakemake#12 (cost_limit) and #13 (pinned specs).
+
+The container half of #12 was removed in #16: routing a rule's `container:` to
+`spec.container` cannot work here, because `spec.command` is a Snakemake
+re-invocation rather than the rule's shell — so it put `python -m snakemake
+--mode remote` inside a single-tool science image. See #16 for the shape that
+can work (apptainer on the node, with Snakemake owning containerisation).
+"""
 
 from __future__ import annotations
 
@@ -59,24 +66,6 @@ def test_ttl_and_on_complete_survive_the_cost_limit_addition():
         "on_complete": "terminate",
         "cost_limit": 1.0,
     }
-
-
-# ---- #12: spec.container -----------------------------------------------------
-
-
-def test_container_is_emitted():
-    """Routes the job through spawn's existing container path — Docker install on
-    demand, digest pull, private-ECR auth, GPU flags — instead of a bare AL2023
-    host where the tool has to already be present."""
-    img = "quay.io/biocontainers/bwa:0.7.18--he4a0461_1"
-    assert _spec(container=img)["container"] == img
-
-
-def test_container_omitted_when_unset():
-    """No container means run on the host, which is the previous behaviour and
-    still valid for a rule that needs nothing installed."""
-    for spec in (_spec(), _spec(container=None), _spec(container="")):
-        assert "container" not in spec
 
 
 # ---- #13: pinned install specs ----------------------------------------------

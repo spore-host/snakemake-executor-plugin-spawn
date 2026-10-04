@@ -109,7 +109,6 @@ def build_task_spec(
     spot: bool = False,
     ttl: str = "4h",
     on_complete: str = "terminate",
-    container: Optional[str] = None,
     cost_limit: Optional[float] = None,
 ) -> dict:
     """Build the TaskSpec dict for one Snakemake job. Pure.
@@ -157,14 +156,6 @@ def build_task_spec(
         "resources": resources,
         "lifecycle": lifecycle,
     }
-
-    # spec.container routes the job through spawn's existing container path —
-    # Docker install on demand, digest pull, private-ECR auth, GPU flags — rather
-    # than running on a bare AL2023 host where the tool has to already be present
-    # (snakemake#12). This is the field that makes a run's software identifiable,
-    # and it is what nf-spawn has had all along.
-    if container:
-        spec["container"] = container
 
     return spec
 

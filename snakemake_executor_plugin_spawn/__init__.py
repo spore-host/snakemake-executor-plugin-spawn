@@ -82,19 +82,6 @@ class ExecutorSettings(ExecutorSettingsBase):
             "env_var": True,
         },
     )
-    container: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Container image to run every job in (e.g. quay.io/biocontainers/bwa:0.7.18). "
-                "Overridden per-rule by Snakemake's own `container:` directive, which is "
-                "passed through automatically. spawn installs Docker on demand, pulls the "
-                "image (authenticating to a private ECR registry if needed) and runs the "
-                "job inside it."
-            ),
-            "env_var": True,
-        },
-    )
 
 
 # One job -> one ephemeral VM, no shared filesystem; Snakemake's S3 storage plugin
