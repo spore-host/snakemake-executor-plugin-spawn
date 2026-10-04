@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-04
+
 ### Removed
 - **The `container:` passthrough and `--spawn-container`, both added in 0.3.0, are
   removed — they could not work** (#16). Routing a rule's `container:` to
@@ -179,6 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instance (auto-installed Python 3.11 + snakemake + the S3 storage plugin at
   boot), wrote its output to S3, and self-terminated (leak-checked clean).
 
-[Unreleased]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spore-host/snakemake-executor-plugin-spawn/releases/tag/v0.1.0
