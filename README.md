@@ -8,7 +8,8 @@ on a purpose-sized, ephemeral EC2 instance via
 [cwl-spawn](https://github.com/spore-host/cwl-spawn) (CWL). Part of the spore.host
 suite.
 
-Each job is auto-sized from its `threads`/`resources` (via `truffle`), launched
+Each job is auto-sized from its `threads`/`resources` (spawn picks the cheapest
+instance that fits), launched
 with a TTL and `--on-complete terminate`, and torn down when it finishes — so a
 workflow costs only the compute each job actually uses, with no cluster to run and
 no forgotten instances.
@@ -35,8 +36,8 @@ A venv is usually required rather than merely tidy: Snakemake is commonly instal
 from Homebrew, whose Python is PEP 668 externally-managed, and `pip install` into it
 is refused outright.
 
-Requires the `spawn` and `truffle` CLIs on `PATH` and AWS credentials for real
-runs.
+Requires the `spawn` CLI on `PATH` and AWS credentials for real runs. spawn sizes
+instances with its built-in truffle, so no separate `truffle` CLI is needed.
 
 ## Use
 
@@ -58,7 +59,7 @@ standing infrastructure.
 
 ### Sizing
 
-A job's EC2 instance is sized by spawn (via truffle), from, in order:
+A job's EC2 instance is sized by spawn, from, in order:
 1. an explicit instance-type override (`--spawn-instance-type`), which steers the
    instance _family_ (e.g. `c7i.4xlarge` → the `c7i` family),
 2. the cheapest instance that fits the job's `threads` + `resources.mem_mb`,

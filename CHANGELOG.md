@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- **The README no longer lists the `truffle` CLI as a requirement**
+  (spore-host/spore-host#585). The plugin runs only `spawn`, and spawn sizes the
+  instance with its built-in truffle.
+
 ## [0.4.0] - 2026-10-04
 
 ### Removed

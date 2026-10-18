@@ -23,7 +23,7 @@ Follows **[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)** and
 
 ## Build & test
 
-Python package (3.11+). Needs the `spawn` and `truffle` CLIs on PATH at runtime,
+Python package (3.11+). Needs the `spawn` CLI on PATH at runtime,
 plus AWS credentials, for real runs.
 
 - `pip install -e ".[dev]"` — install with dev deps
@@ -68,7 +68,8 @@ always launch with `--on-complete terminate` and a TTL.
 
 ## Reuse / lineage
 
-Mirrors cwl-spawn/miniwdl-spawn/nf-spawn (same `spawn` CLI contract, same
-`.exitcode`-in-S3 completion, same truffle auto-sizing). `launch.py`,
-`completion.py`, `sizing.py` ported ~verbatim (sizing reads Snakemake `mem_mb`).
+Mirrors cwl-spawn/miniwdl-spawn/nf-spawn: all four build a spawn TaskSpec and
+dispatch `spawn task run` (spawn#386), which owns sizing and the durable
+completion record. (The earlier `launch.py`/`completion.py`/`sizing.py` ports and
+`.exitcode`-in-S3 completion are gone.)
 Reference plugin: `snakemake-executor-plugin-googlebatch` (one ephemeral VM per job).
