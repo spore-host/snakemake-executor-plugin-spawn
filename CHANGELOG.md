@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Each job of a wildcard fan-out now gets its own spawn task id and completion record
+  (#19).** The id was `smk-<rule>-<attempt>`, so every job of one rule shared one id. With
+  `--jobs N > 1` they all wrote one `tasks/<id>/completion.json`, last writer wins, and each
+  job was reported from whichever shard wrote last. A failed shard could be reported as
+  succeeded, and the reverse. The id is now `smk-<rule>-<jobid>-<attempt>`. It is still
+  stable across retries of a job (same `jobid`, new `attempt`), and truncation only
+  shortens the rule part. Records written under the old ids are never read by the new
+  ones. They are left in the results bucket (prefix `tasks/smk-`) and are safe to delete.
+
 ### Documentation
 - **The README no longer lists the `truffle` CLI as a requirement**
   (spore-host/spore-host#585). The plugin runs only `spawn`, and spawn sizes the

@@ -9,8 +9,9 @@
 # is Snakemake's exact analog of miniwdl's no-`File`-output task: it lets a REAL
 # `snakemake --executor spawn` run compose end-to-end with spawn against Substrate.
 #
-# The single job's spawn task id is deterministic: smk-<rulename>-<attempt> =
-# `smk-noout-1` (see `_task_id` in executor.py), so the failure test can seed the
+# The single job's spawn task id is deterministic: smk-<rulename>-<jobid>-<attempt>
+# = `smk-noout-0-1` (see `_task_id` in executor.py; the only job of a one-job DAG
+# is jobid 0), so the failure test can seed the
 # completion record before running — no log scraping, no race.
 rule noout:
     resources:
