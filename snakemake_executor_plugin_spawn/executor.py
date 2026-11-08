@@ -85,13 +85,27 @@ class SpawnExecutor(RemoteExecutor):
             return None
 
     def _task_id(self, job: "JobExecutorInterface") -> str:
-        # Fold the attempt into the id: it names the instance AND keys the
-        # completion record (tasks/<id>/completion.json), so a retry must not read
-        # the previous attempt's record.
-        raw = f"smk-{getattr(job, 'name', None) or job.jobid}"
+        """One spawn task id per (job, attempt): ``smk-<rule>-<jobid>-<attempt>``.
+
+        The id names the instance AND keys the completion record
+        (``tasks/<id>/completion.json``), so it must be unique per job and per
+        attempt:
+
+        - ``jobid`` (#19): ``job.name`` is the RULE name, so every job of a
+          wildcard fan-out shared one id and one completion record, and each
+          job's poll read whichever shard wrote last. ``jobid`` is unique per DAG
+          node within a run and is the same object's id on every retry.
+        - ``attempt``: a retry must not read the previous attempt's record.
+
+        Only the rule part is truncated, so the 60-char cap can never cut the
+        jobid or attempt off and make two jobs collide again.
+        """
+        rule = _NAME_SANITIZE.sub("-", str(getattr(job, "name", None) or "job").lower()).strip("-")
+        jobid = _NAME_SANITIZE.sub("-", str(job.jobid).lower()).strip("-") or "0"
         attempt = getattr(job, "attempt", 1) or 1
-        base = _NAME_SANITIZE.sub("-", raw.lower()).strip("-") or "smk-job"
-        return f"{base}-{attempt}"[:60]
+        suffix = f"-{jobid}-{attempt}"
+        head = f"smk-{rule}"[: max(0, 60 - len(suffix))].rstrip("-") or "smk"
+        return f"{head}{suffix}"
 
     def _instance_hint(self, job: "JobExecutorInterface") -> "str | None":
         res = job.resources

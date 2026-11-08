@@ -52,8 +52,9 @@ echo "spawn=$(command -v spawn)  snakemake=$(command -v snakemake)  endpoint=$EN
 # creates the results bucket itself, but the workdir base bucket must exist).
 aws --endpoint-url "$ENDPOINT" s3 mb "s3://${BUCKET}" 2>/dev/null || true
 
-# The single job's task id (smk-<rulename>-<attempt>) is deterministic.
-TASK_ID="smk-noout-1"
+# The single job's task id (smk-<rulename>-<jobid>-<attempt>, #19) is
+# deterministic: a one-job DAG's only job is jobid 0.
+TASK_ID="smk-noout-0-1"
 
 # Robust to Substrate state from an earlier run in the same server: clear any
 # seeded completion so TEST 1 is genuinely unseeded (⇒ nominal exit 0).
