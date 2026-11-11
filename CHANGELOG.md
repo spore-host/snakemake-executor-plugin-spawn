@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `SECURITY.md`: report vulnerabilities privately through GitHub's private vulnerability reporting (the repository's Security tab), not public issues.
+
 ### Fixed
 - **Each job of a wildcard fan-out now gets its own spawn task id and completion record
   (#19).** The id was `smk-<rule>-<attempt>`, so every job of one rule shared one id. With
